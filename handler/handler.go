@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,19 +16,20 @@ type Client struct {
 	ID       int
 	Username string
 	Password string
-	MaxConn  string
+	Nama     string
+	Foto     string
 }
 
 const (
-	tableName = "ListClient"
+	TABLENAME = "user"
 )
 
-func (db *DB) GetClient(c *gin.Context) {
+func (db *DB) GetUser(c *gin.Context) {
 	client := Client{}
 	result := gin.H{}
 
 	id := c.Param("id")
-	if err := db.DB.Table(tableName).Where("id = ?", id).First(&client).Error; err != nil {
+	if err := db.DB.Table(TABLENAME).Where("id = ?", id).First(&client).Error; err != nil {
 		result = gin.H{"result": err}
 	} else {
 		result = gin.H{"result": client}
@@ -37,16 +39,16 @@ func (db *DB) GetClient(c *gin.Context) {
 }
 
 //bit different output
-func (db *DB) GetClients(c *gin.Context) {
+func (db *DB) GetUsers(c *gin.Context) {
 	clients := []Client{}
 	total := 0
-	db.DB.Table(tableName).Count(&total)
+	db.DB.Table(TABLENAME).Count(&total)
 	if total <= 0 {
 		c.JSON(http.StatusNotFound, nil)
 		return
 	}
 
-	if err := db.DB.Table(tableName).Find(&clients).Error; err != nil {
+	if err := db.DB.Table(TABLENAME).Find(&clients).Error; err != nil {
 		c.JSON(http.StatusNotFound, err)
 		return
 	}
@@ -54,26 +56,38 @@ func (db *DB) GetClients(c *gin.Context) {
 	c.JSON(http.StatusOK, clients)
 }
 
-func (db *DB) CreateClient(c *gin.Context) {
+func (db *DB) CreateUser(c *gin.Context) {
+
+	file, err := c.FormFile("foto")
+	if err != nil {
+		c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
+		return
+	}
+	path := "foto/" + file.Filename
+	if err := c.SaveUploadedFile(file, path); err != nil {
+		c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
+		return
+	}
+
 	client := Client{
 		Username: c.PostForm("username"),
 		Password: c.PostForm("password"),
-		MaxConn:  c.PostForm("maxConn")}
+		Nama:     c.PostForm("nama"),
+		Foto:     path}
 	result := gin.H{}
-
-	db.DB.Table(tableName).Create(&client)
+	db.DB.Table(TABLENAME).Create(&client)
 	result = gin.H{
 		"result": client,
 	}
 	c.JSON(http.StatusOK, result)
 }
 
-func (db *DB) UpdateClient(c *gin.Context) {
+func (db *DB) UpdateUser(c *gin.Context) {
 	client := Client{}
 	result := gin.H{}
 
 	id := c.Query("id")
-	err := db.DB.Table(tableName).First(&client, id).Error
+	err := db.DB.Table(TABLENAME).First(&client, id).Error
 	if err != nil {
 		result = gin.H{"result": "data not found"}
 	}
@@ -81,8 +95,9 @@ func (db *DB) UpdateClient(c *gin.Context) {
 	newClient := Client{
 		Username: c.PostForm("username"),
 		Password: c.PostForm("password"),
-		MaxConn:  c.PostForm("maxConn")}
-	err = db.DB.Table(tableName).Model(&client).Updates(newClient).Error
+		Nama:     c.PostForm("nama"),
+		Foto:     c.PostForm("foto")}
+	err = db.DB.Table(TABLENAME).Model(&client).Updates(newClient).Error
 	if err != nil {
 		result = gin.H{"result": "update failed"}
 	} else {
@@ -91,15 +106,15 @@ func (db *DB) UpdateClient(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-func (db *DB) DeleteClient(c *gin.Context) {
+func (db *DB) DeleteUser(c *gin.Context) {
 	client := Client{}
 	result := gin.H{}
 
 	id := c.Param("id")
-	if err := db.DB.Table(tableName).First(&client, id).Error; err != nil {
+	if err := db.DB.Table(TABLENAME).First(&client, id).Error; err != nil {
 		result = gin.H{"result": "data not found"}
 	}
-	if err := db.DB.Table(tableName).Delete(&client).Error; err != nil {
+	if err := db.DB.Table(TABLENAME).Delete(&client).Error; err != nil {
 		result = gin.H{"result": "delete failed"}
 	} else {
 		result = gin.H{"result": "Data deleted successfully"}

@@ -57,7 +57,6 @@ func (db *DB) GetUsers(c *gin.Context) {
 }
 
 func (db *DB) CreateUser(c *gin.Context) {
-
 	file, err := c.FormFile("foto")
 	if err != nil {
 		c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
@@ -92,11 +91,22 @@ func (db *DB) UpdateUser(c *gin.Context) {
 		result = gin.H{"result": "data not found"}
 	}
 
+	file, err := c.FormFile("foto")
+	if err != nil {
+		c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
+		return
+	}
+	path := "foto/" + file.Filename
+	if err := c.SaveUploadedFile(file, path); err != nil {
+		c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
+		return
+	}
+
 	newClient := Client{
 		Username: c.PostForm("username"),
 		Password: c.PostForm("password"),
 		Nama:     c.PostForm("nama"),
-		Foto:     c.PostForm("foto")}
+		Foto:     path}
 	err = db.DB.Table(TABLENAME).Model(&client).Updates(newClient).Error
 	if err != nil {
 		result = gin.H{"result": "update failed"}
